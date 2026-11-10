@@ -4,6 +4,9 @@
 group_*_winequality.csv
 !/dados/group_1_winequality.csv
 /references/
+/scripts/
+/templates/
+/textos.json
 
 # Skills e configuração local de agentes
 SKILL.md

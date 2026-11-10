@@ -4,22 +4,24 @@ Trabalho final de Machine Learning em Python. A primeira parte estima a nota sen
 `quality` por regressão. A segunda agrupa a nota em faixas e avalia classificadores.
 O insumo é o [CSV do Grupo 1](dados/group_1_winequality.csv) fornecido pelo professor.
 
-## Entrega local
+## Código do trabalho
 
-O Git exclui a pasta `entrega/`. Os arquivos abaixo ficam disponíveis localmente após a preparação e a execução.
+O [modelo.py](modelo.py) é o script de Machine Learning. Ele carrega os dados, prepara
+os atributos, treina e compara os modelos e avalia os resultados.
+O [notebook](trabalho_ml_vinhos.ipynb) apresenta esse código por etapas, com explicações,
+gráficos e resultados executados. Ambos usam [limpeza.py](limpeza.py) para tratar
+o [CSV do Grupo 1](dados/group_1_winequality.csv).
 
-| Arquivo local | Conteúdo |
+| Arquivo | Conteúdo |
 |---|---|
-| `entrega/trabalho_ml_vinhos.ipynb` | Limpeza, exploração, código de modelagem, resultados e discussão |
-| `entrega/group_1_winequality.csv` | Cópia byte a byte do arquivo no ZIP do professor |
-| `entrega/relatorio_grupo_1.docx` | Método, auditoria, resultados, interpretação e referências |
-| `entrega/apresentacao_grupo_1.pptx` | Dez slides com roteiro e duração sugerida nas notas |
+| `modelo.py` | Script com exploração, treinamento e avaliação dos modelos |
+| `trabalho_ml_vinhos.ipynb` | Análise exploratória, pipelines, regressão, classificação e discussão |
+| `limpeza.py` | Leitura, validação, reparos e auditoria dos dados |
+| `dados/group_1_winequality.csv` | CSV original fornecido pelo professor |
+| `requirements.txt` | Dependências para executar o trabalho |
 
-A [limpeza](scripts/limpeza.py) tem uma implementação compartilhada. O [gerador do notebook](scripts/gerar_notebook.py)
-combina esse código com o [template da análise](templates/notebook_template.py) e as
-[discussões do Grupo 1](textos.json). O notebook abre com as saídas já incorporadas e
-usa o CSV ao lado. O [gerador da documentação](scripts/gerar_documentacao.py) cria o relatório
-e os slides a partir dos resultados do notebook.
+O notebook abre com as saídas já incorporadas. O relatório e a apresentação estão
+na pasta local `entrega/`.
 
 ## Reproduzir no PowerShell
 
@@ -31,29 +33,21 @@ py -3.12 -m venv .venv
 $pythonVinhos = ".\.venv\Scripts\python.exe"
 & $pythonVinhos -m pip install -r requirements.txt
 
-# Preparação do CSV ao lado do notebook.
-New-Item -ItemType Directory -Path entrega -Force | Out-Null
-Copy-Item -LiteralPath dados/group_1_winequality.csv -Destination entrega/group_1_winequality.csv
-
 # Inspeção opcional do CSV, com auditoria na saída do terminal.
-& $pythonVinhos scripts/limpeza.py entrega/group_1_winequality.csv
+& $pythonVinhos limpeza.py dados/group_1_winequality.csv
 
-# Geração e execução a partir do template e das análises do Grupo 1.
-& $pythonVinhos scripts/gerar_notebook.py --csv group_1_winequality.csv --saida entrega/trabalho_ml_vinhos.ipynb --equipe "Grupo 1" --textos textos.json
-New-Item -ItemType Directory -Path build -Force | Out-Null
-$env:VINHOS_RESULTADOS = (Resolve-Path build).Path
+# Execução do script de Machine Learning.
+& $pythonVinhos modelo.py
+
+# Execução de todas as células do notebook.
 $env:OMP_NUM_THREADS = "1"
 $env:OPENBLAS_NUM_THREADS = "1"
 $env:MKL_NUM_THREADS = "1"
-& $pythonVinhos -m jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=1800 entrega/trabalho_ml_vinhos.ipynb
-
-# O JSON e os gráficos gerados em build são a fonte da documentação.
-& $pythonVinhos scripts/gerar_documentacao.py
+& $pythonVinhos -m jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=1800 trabalho_ml_vinhos.ipynb
 ```
 
-O parâmetro `--csv` é interpretado pelo notebook a partir da pasta em que ele roda.
-Para uma primeira execução com outro CSV, gere o notebook sem `--textos` e atualize
-as discussões com os resultados obtidos antes de publicar os materiais.
+O caminho do CSV está na variável `CAMINHO_CSV` do notebook e é relativo à pasta
+do projeto. Ao usar outra base, revise a limpeza e as discussões com os novos resultados.
 
 ## Método e fontes
 
