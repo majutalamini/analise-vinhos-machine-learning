@@ -1,0 +1,36 @@
+# Dados locais, resultados e materiais de entrega
+/entrega/
+/build/
+group_*_winequality.csv
+!/dados/group_1_winequality.csv
+/references/
+
+# Skills e configuração local de agentes
+SKILL.md
+/skills/
+/.agents/
+/.codex/
+
+# Ambientes, caches e empacotamento Python
+/.venv/
+/venv/
+/dist/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Configuração privada, editores e arquivos temporários
+.env
+.env.*
+!.env.example
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+*.log
