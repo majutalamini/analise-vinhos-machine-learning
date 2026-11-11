@@ -1,7 +1,6 @@
-# Estrutura do relatório escrito
+# ANALISAR
 
-Tom acadêmico, português do Brasil, 6–10 páginas. Números sempre do notebook executado.
-Tabelas e figuras numeradas, com legenda e referência no texto.
+# Estrutura do relatório escrito
 
 1. **Capa** — instituição, disciplina, título, integrantes, professor, data.
 2. **Introdução** — problema (prever a qualidade sensorial a partir da química), objetivo das
@@ -22,5 +21,5 @@ Tabelas e figuras numeradas, com legenda e referência no texto.
 8. **Conclusão** — respostas diretas: melhor modelo em cada parte, variáveis mais importantes,
    limitações, trabalhos futuros.
 9. **Referências** — Cortez, P. et al. (2009). Modeling wine preferences by data mining from
-   physicochemical properties. *Decision Support Systems*, 47(4), 547–553; documentação do
+   physicochemical properties. _Decision Support Systems_, 47(4), 547–553; documentação do
    scikit-learn e do imbalanced-learn.

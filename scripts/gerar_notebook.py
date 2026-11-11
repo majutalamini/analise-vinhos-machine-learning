@@ -62,7 +62,8 @@ def ler_celulas(texto):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--csv", required=True, help="nome/caminho do CSV como será usado no notebook")
+    p.add_argument("--csv", default="group_1_winequality.csv",
+                   help="nome/caminho do CSV como será usado no notebook")
     p.add_argument("--saida", default="trabalho_ml_vinhos.ipynb")
     p.add_argument("--equipe", default="(nomes da equipe)")
     p.add_argument("--esquema", default="A: 0-4 | 5-6 | 7-10",

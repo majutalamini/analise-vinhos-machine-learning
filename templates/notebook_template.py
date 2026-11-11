@@ -24,6 +24,36 @@
 # `scikit-learn` (modelos e métricas) e `imbalanced-learn` (SMOTE para balanceamento).
 #
 # Se faltar alguma: `pip install pandas numpy matplotlib seaborn scikit-learn imbalanced-learn`
+#
+# ### Glossário rápido
+#
+# **Variáveis do vinho** (nomes originais do arquivo → significado):
+#
+# | Variável | Em português | O que mede |
+# |---|---|---|
+# | `fixed acidity` | acidez fixa | ácidos não voláteis (ex.: tartárico), dão "estrutura" ao vinho |
+# | `volatile acidity` | acidez volátil | ácido acético; em excesso dá gosto de vinagre |
+# | `citric acid` | ácido cítrico | acrescenta frescor |
+# | `residual sugar` | açúcar residual | açúcar que sobra após a fermentação (g/L) |
+# | `chlorides` | cloretos | quantidade de sal |
+# | `free sulfur dioxide` | SO2 livre | dióxido de enxofre ativo, protege contra oxidação |
+# | `total sulfur dioxide` | SO2 total | SO2 livre + combinado |
+# | `density` | densidade | depende do álcool e do açúcar |
+# | `pH` | pH | acidez geral (menor = mais ácido) |
+# | `sulphates` | sulfatos | aditivo que atua como conservante |
+# | `alcohol` | teor alcoólico | % de álcool por volume |
+# | `type` | tipo | tinto (`red`) ou branco (`white`) |
+# | `quality` | qualidade | **alvo**: nota sensorial de 0 a 10 |
+#
+# **Métricas e termos usados:**
+# - **RMSE** — erro médio "quadrático", na mesma unidade da nota (quanto menor, melhor); pune erros grandes.
+# - **MAE** — erro médio absoluto: em média, quantos pontos de nota o modelo erra.
+# - **R²** — fração da variação da nota explicada pelo modelo (0 = não explica nada, 1 = explica tudo).
+# - **F1-macro** — média do F1 de cada classe com peso igual; boa métrica quando as classes são desbalanceadas.
+# - **Validação cruzada (CV)** — o treino é dividido em 5 partes; o modelo treina em 4 e é avaliado na 5ª, em rodízio.
+# - **Winsorização** — limitar valores extremos aos percentis 1% e 99% em vez de apagar as linhas.
+# - **SMOTE** — cria exemplos sintéticos das classes raras para equilibrar o treino.
+# - **Data leakage (vazamento)** — quando informação do teste "vaza" para o treino e infla os resultados.
 
 # %%
 import re
@@ -33,6 +63,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.lines import Line2D
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
@@ -58,6 +89,19 @@ plt.rcParams["figure.dpi"] = 100
 
 SEED = 42                       # semente fixa -> resultados reprodutíveis
 CAMINHO_CSV = "{{CSV}}"         # ajuste se o arquivo estiver em outra pasta
+
+# Nomes em português usados apenas nos gráficos e tabelas de apresentação
+# (o código e o modelo continuam usando os nomes originais das colunas).
+NOMES_PT = {
+    "fixed acidity": "acidez fixa", "volatile acidity": "acidez volátil",
+    "citric acid": "ácido cítrico", "residual sugar": "açúcar residual",
+    "chlorides": "cloretos", "free sulfur dioxide": "SO2 livre",
+    "total sulfur dioxide": "SO2 total", "density": "densidade", "pH": "pH",
+    "sulphates": "sulfatos", "alcohol": "teor alcoólico", "quality": "qualidade",
+    "type": "tipo", "type_white": "tipo = branco",
+}
+TIPO_PT = {"red": "Tinto", "white": "Branco"}
+CORES_TIPO = {"Tinto": "#8c2d4a", "Branco": "#d9c27a"}
 
 # %% [markdown]
 # ## 1. Carregamento e limpeza dos dados
@@ -190,11 +234,17 @@ df.describe().T.round(3)
 # ### 2.1 Distribuição do alvo `quality`
 
 # %%
+# Coluna auxiliar só para os gráficos (rótulos em português); não entra no modelo.
+df["tipo_pt"] = df["type"].map(TIPO_PT)
+
 fig, ax = plt.subplots(1, 2, figsize=(12, 4))
 sns.countplot(x="quality", data=df, ax=ax[0], color="#8c2d4a")
-ax[0].set_title("Distribuição de quality")
-sns.countplot(x="quality", hue="type", data=df, ax=ax[1], palette={"red": "#8c2d4a", "white": "#d9c27a"})
-ax[1].set_title("quality por tipo de vinho")
+ax[0].set_title("Distribuição da nota de qualidade")
+ax[0].set_xlabel("Nota de qualidade (0 a 10)"); ax[0].set_ylabel("Quantidade de vinhos")
+sns.countplot(x="quality", hue="tipo_pt", data=df, ax=ax[1], palette=CORES_TIPO)
+ax[1].set_title("Nota de qualidade por tipo de vinho")
+ax[1].set_xlabel("Nota de qualidade (0 a 10)"); ax[1].set_ylabel("Quantidade de vinhos")
+ax[1].legend(title="Tipo de vinho")
 plt.tight_layout(); plt.show()
 print(df["quality"].value_counts(normalize=True).sort_index().round(3))
 
@@ -205,8 +255,11 @@ print(df["quality"].value_counts(normalize=True).sort_index().round(3))
 
 # %%
 FEATURES_NUM = list(FAIXAS.keys())
-df[FEATURES_NUM].hist(bins=40, figsize=(16, 11), color="#4a6fa5", edgecolor="white")
-plt.suptitle("Histogramas das variáveis numéricas", y=1.0)
+eixos = df[FEATURES_NUM].rename(columns=NOMES_PT).hist(bins=40, figsize=(16, 11),
+                                                       color="#4a6fa5", edgecolor="white")
+for ax in eixos.flat:
+    ax.set_xlabel("valor medido"); ax.set_ylabel("nº de vinhos")
+plt.suptitle("Histogramas das variáveis físico-químicas (quantos vinhos há em cada faixa de valor)", y=1.0)
 plt.tight_layout(); plt.show()
 
 # %% [markdown]
@@ -218,15 +271,20 @@ plt.tight_layout(); plt.show()
 fig, axes = plt.subplots(3, 4, figsize=(16, 10))
 for ax, col in zip(axes.flat, FEATURES_NUM):
     sns.boxplot(y=df[col], ax=ax, color="#a5c8e4")
-    ax.set_title(col)
+    ax.set_title(NOMES_PT[col]); ax.set_ylabel("valor medido")
 axes.flat[-1].axis("off")
+# Legenda de leitura no espaço vazio: caixa = 50% central dos vinhos; pontos = outliers
+axes.flat[-1].text(0.0, 0.5, "Como ler o boxplot:\n• linha no meio da caixa = mediana\n"
+                   "• caixa = 50% centrais dos vinhos\n• hastes = faixa 'normal'\n"
+                   "• pontos isolados = outliers", fontsize=10, va="center")
+plt.suptitle("Boxplots das variáveis físico-químicas", y=1.0)
 plt.tight_layout(); plt.show()
 
 # Contagem de outliers pelo critério IQR (1,5 × intervalo interquartil)
 q1, q3 = df[FEATURES_NUM].quantile(0.25), df[FEATURES_NUM].quantile(0.75)
 iqr = q3 - q1
 outliers_iqr = ((df[FEATURES_NUM] < q1 - 1.5 * iqr) | (df[FEATURES_NUM] > q3 + 1.5 * iqr)).sum()
-outliers_iqr.sort_values(ascending=False).to_frame("outliers (IQR)")
+outliers_iqr.rename(index=NOMES_PT).sort_values(ascending=False).to_frame("nº de outliers (IQR)")
 
 # %% [markdown]
 # {{EDA_OUTLIERS}}
@@ -236,10 +294,11 @@ outliers_iqr.sort_values(ascending=False).to_frame("outliers (IQR)")
 # %%
 corr = df[FEATURES_NUM + ["quality"]].corr()
 plt.figure(figsize=(11, 9))
-sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r", center=0, square=True, cbar_kws={"shrink": .8})
-plt.title("Matriz de correlação (Pearson)")
+sns.heatmap(corr.rename(index=NOMES_PT, columns=NOMES_PT), annot=True, fmt=".2f", cmap="RdBu_r",
+            center=0, square=True, cbar_kws={"shrink": .8, "label": "correlação (−1 a +1)"})
+plt.title("Matriz de correlação de Pearson\n(azul = sobem juntas · vermelho = uma sobe e a outra desce)")
 plt.show()
-corr["quality"].drop("quality").sort_values(key=abs, ascending=False).to_frame("corr. com quality")
+corr["quality"].drop("quality").rename(index=NOMES_PT).sort_values(key=abs, ascending=False).to_frame("correlação com a qualidade")
 
 # %% [markdown]
 # {{EDA_CORR}}
@@ -252,15 +311,23 @@ fig, axes = plt.subplots(1, 4, figsize=(18, 4))
 for ax, col in zip(axes, top4):
     sns.stripplot(x="quality", y=col, data=df, ax=ax, alpha=.25, jitter=.3, size=2.5, color="#4a6fa5")
     sns.pointplot(x="quality", y=col, data=df, ax=ax, color="#c0392b", errorbar=None)
-    ax.set_title(f"{col} × quality")
+    ax.set_title(f"{NOMES_PT[col]} × qualidade")
+    ax.set_xlabel("Nota de qualidade"); ax.set_ylabel(NOMES_PT[col])
+    ax.legend(handles=[Line2D([], [], marker="o", ls="", color="#4a6fa5", alpha=.6, label="cada vinho"),
+                       Line2D([], [], color="#c0392b", marker="o", label="média da nota")],
+              fontsize=8, loc="best")
 plt.tight_layout(); plt.show()
 
 fig, ax = plt.subplots(1, 2, figsize=(13, 4.5))
 sns.scatterplot(x="alcohol", y="density", hue="quality", data=df, palette="viridis", s=12, ax=ax[0])
-ax[0].set_title("alcohol × density (cor = quality)")
-sns.scatterplot(x="total sulfur dioxide", y="chlorides", hue="type", data=df, s=12, ax=ax[1],
-                palette={"red": "#8c2d4a", "white": "#d9c27a"})
+ax[0].set_title("Teor alcoólico × densidade (cor = nota de qualidade)")
+ax[0].set_xlabel("Teor alcoólico (% vol.)"); ax[0].set_ylabel("Densidade (g/cm³)")
+ax[0].legend(title="Qualidade", fontsize=8)
+sns.scatterplot(x="total sulfur dioxide", y="chlorides", hue="tipo_pt", data=df, s=12, ax=ax[1],
+                palette=CORES_TIPO)
 ax[1].set_title("Tintos e brancos separam bem em SO2 total × cloretos")
+ax[1].set_xlabel("SO2 total (mg/L)"); ax[1].set_ylabel("Cloretos (g/L)")
+ax[1].legend(title="Tipo de vinho")
 plt.tight_layout(); plt.show()
 
 # %% [markdown]
@@ -407,10 +474,13 @@ fig, ax = plt.subplots(1, 2, figsize=(13, 4.5))
 sns.boxplot(x=y_test, y=pred, ax=ax[0], color="#a5c8e4")
 notas = np.sort(y_test.unique())
 ax[0].plot(range(len(notas)), notas, "r--", label="previsão perfeita")
-ax[0].set_xlabel("nota real"); ax[0].set_ylabel("nota prevista")
-ax[0].set_title(f"{melhor_nome_reg}: previsto × real"); ax[0].legend()
+ax[0].set_xlabel("Nota real"); ax[0].set_ylabel("Nota prevista pelo modelo")
+ax[0].set_title(f"{melhor_nome_reg}: nota prevista × nota real"); ax[0].legend()
 sns.histplot(y_test - pred, bins=40, ax=ax[1], color="#4a6fa5")
-ax[1].set_title("Distribuição dos resíduos (real − previsto)")
+ax[1].axvline(0, color="r", ls="--", label="erro zero (previsão exata)")
+ax[1].set_title("Distribuição dos resíduos (nota real − nota prevista)")
+ax[1].set_xlabel("Resíduo (em pontos de nota)"); ax[1].set_ylabel("Quantidade de vinhos")
+ax[1].legend()
 plt.tight_layout(); plt.show()
 
 # %% [markdown]
@@ -428,21 +498,27 @@ ridge = melhores_reg["Ridge"]
 coef_ridge = pd.Series(ridge.named_steps["modelo"].coef_,
                        index=ridge.named_steps["prep"].get_feature_names_out())
 
-fig, ax = plt.subplots(figsize=(8, 5))
-coef.plot.barh(ax=ax, color=["#c0392b" if c < 0 else "#27ae60" for c in coef])
+fig, ax = plt.subplots(figsize=(9, 5))
+coef.rename(index=NOMES_PT).plot.barh(ax=ax, color=["#c0392b" if c < 0 else "#27ae60" for c in coef])
 ax.set_title("Coeficientes padronizados — Regressão Linear"); ax.axvline(0, color="k", lw=.8)
+ax.set_xlabel("Variação na nota para +1 desvio-padrão da variável (demais constantes)")
+ax.set_ylabel("Variável")
+ax.legend(handles=[Line2D([], [], color="#27ae60", lw=6, label="aumenta a nota"),
+                   Line2D([], [], color="#c0392b", lw=6, label="diminui a nota")], loc="lower right")
 plt.tight_layout(); plt.show()
-pd.DataFrame({"Linear": coef, "Ridge": coef_ridge}).round(3)
+pd.DataFrame({"Linear": coef, "Ridge": coef_ridge}).rename(index=NOMES_PT).round(3)
 
 # %%
 # Importância por permutação no teste: quanto o R² cai ao embaralhar cada variável.
 # Funciona para qualquer modelo e é mais confiável que a importância "impurity" das árvores.
 imp = permutation_importance(melhor_reg, X_test, y_test, n_repeats=10, random_state=SEED,
                              scoring="r2", n_jobs=-1)
-imp_reg = pd.Series(imp.importances_mean, index=X_test.columns).sort_values()
+imp_reg = pd.Series(imp.importances_mean, index=X_test.columns).rename(index=NOMES_PT).sort_values()
 imp_reg.plot.barh(figsize=(8, 5), color="#4a6fa5",
                   title=f"Importância por permutação — {melhor_nome_reg}")
-plt.xlabel("queda no R²"); plt.tight_layout(); plt.show()
+plt.xlabel("queda no R² ao embaralhar a variável (maior = mais importante)")
+plt.ylabel("Variável"); plt.tight_layout(); plt.show()
+imp_reg.sort_values(ascending=False).round(4).to_frame("queda no R²")
 
 # %% [markdown]
 # ### 4.5 Discussão da regressão
@@ -461,8 +537,8 @@ plt.xlabel("queda no R²"); plt.tight_layout(); plt.show()
 
 # %%
 ESQUEMAS = {
-    "A: 0-4 | 5-6 | 7-10": ([0, 4, 6, 10], ["baixa", "media", "alta"]),
-    "B: 0-5 | 6 | 7-10":   ([0, 5, 6, 10], ["baixa", "media", "alta"]),
+    "A: 0-4 | 5-6 | 7-10": ([0, 4, 6, 10], ["baixa", "média", "alta"]),
+    "B: 0-5 | 6 | 7-10":   ([0, 5, 6, 10], ["baixa", "média", "alta"]),
     "C: 0-5 | 6-10":       ([0, 5, 10], ["ruim", "bom"]),
 }
 
@@ -476,7 +552,8 @@ fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 for ax, esquema in zip(axes, ESQUEMAS):
     dist = discretizar(df["quality"], esquema).value_counts(normalize=True)[ESQUEMAS[esquema][1]]
     dist.plot.bar(ax=ax, color="#8c2d4a", rot=0)
-    ax.set_title(esquema); ax.set_ylabel("proporção")
+    ax.set_title(f"Esquema {esquema}"); ax.set_ylabel("proporção de vinhos")
+    ax.set_xlabel("faixa de qualidade")
     for i, v in enumerate(dist):
         ax.text(i, v + .01, f"{v:.1%}", ha="center")
 plt.tight_layout(); plt.show()
@@ -626,11 +703,13 @@ idx = codificador.transform(ordem)
 fig, ax = plt.subplots(1, 2, figsize=(13, 5))
 ConfusionMatrixDisplay.from_predictions(y_test_c, pred_c, labels=idx, display_labels=ordem,
                                         cmap="Blues", ax=ax[0], colorbar=False)
-ax[0].set_title("Matriz de confusão (contagens)")
+ax[0].set_title("Matriz de confusão (nº de vinhos)")
 ConfusionMatrixDisplay.from_predictions(y_test_c, pred_c, labels=idx, display_labels=ordem,
                                         normalize="true", values_format=".0%", cmap="Blues",
                                         ax=ax[1], colorbar=False)
-ax[1].set_title("Normalizada por linha (recall de cada classe)")
+ax[1].set_title("Normalizada por linha (% de acerto de cada classe real)")
+for a in ax:   # linhas = classe real, colunas = classe prevista; diagonal = acertos
+    a.set_xlabel("Faixa prevista pelo modelo"); a.set_ylabel("Faixa real do vinho")
 plt.tight_layout(); plt.show()
 
 # %%
@@ -641,6 +720,7 @@ for ax, (nome, pipe) in zip(axes, melhores_clf.items()):
                                             display_labels=ordem, normalize="true",
                                             values_format=".0%", cmap="Blues", ax=ax, colorbar=False)
     ax.set_title(nome)
+    ax.set_xlabel("Faixa prevista"); ax.set_ylabel("Faixa real")
 plt.tight_layout(); plt.show()
 
 # %%
@@ -653,10 +733,12 @@ erros.groupby("nota")["acertou"].agg(["count", "mean"]).rename(columns={"count":
 # %%
 imp = permutation_importance(melhor_clf, X_test, y_test_c, n_repeats=10, random_state=SEED,
                              scoring="f1_macro", n_jobs=-1)
-imp_clf = pd.Series(imp.importances_mean, index=X_test.columns).sort_values()
+imp_clf = pd.Series(imp.importances_mean, index=X_test.columns).rename(index=NOMES_PT).sort_values()
 imp_clf.plot.barh(figsize=(8, 5), color="#8c2d4a",
                   title=f"Importância por permutação — {melhor_nome_clf}")
-plt.xlabel("queda no F1-macro"); plt.tight_layout(); plt.show()
+plt.xlabel("queda no F1-macro ao embaralhar a variável (maior = mais importante)")
+plt.ylabel("Variável"); plt.tight_layout(); plt.show()
+imp_clf.sort_values(ascending=False).round(4).to_frame("queda no F1-macro")
 
 # %% [markdown]
 # ### 5.7 Discussão da classificação

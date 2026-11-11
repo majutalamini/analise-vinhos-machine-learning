@@ -1,3 +1,5 @@
+# REALIZAR A ANALISE
+
 # Como interpretar os resultados (para escrever as células de discussão)
 
 Regra geral: cada parágrafo cita o número que o sustenta, explica o que significa em
@@ -5,6 +7,7 @@ linguagem simples e, quando fizer sentido, o porquê (química do vinho ou compo
 Textos curtos (3–6 frases ou poucos bullets por marcador). Português do Brasil.
 
 ## Valores de referência (grupo 1, SEED 42) — use para checar se algo saiu muito diferente
+
 - Após limpeza: 5.369 linhas (1.125 duplicadas removidas), 4.002 brancos e 1.367 tintos.
 - `quality`: 6 = 43,6 %, 5 = 33,0 %, 7 = 16,1 %; notas 3, 4, 8, 9 somam ~7 %.
 - Correlação com `quality`: alcohol +0,47; density −0,33; volatile acidity −0,27; chlorides −0,20.
@@ -15,6 +18,7 @@ Textos curtos (3–6 frases ou poucos bullets por marcador). Português do Brasi
 ## Pontos que valem discutir (são o que o professor costuma perguntar)
 
 **EDA**
+
 - A nota é quase uma variável de 3 valores (5, 6, 7 ≈ 93 %): os extremos são raros, o que
   limita qualquer modelo nas pontas.
 - Caudas longas em residual sugar, chlorides, SO2 → justifica winsorização e mediana.
@@ -25,9 +29,10 @@ Textos curtos (3–6 frases ou poucos bullets por marcador). Português do Brasi
 
 **Outliers** — não removemos linhas porque (1) muitos "outliers" pelo IQR são vinhos reais
 (ex.: vinhos doces com muito açúcar), (2) removeria justamente notas raras. Os valores
-*impossíveis* (erros de digitação) já foram tratados na limpeza.
+_impossíveis_ (erros de digitação) já foram tratados na limpeza.
 
 **Regressão**
+
 - Comparar sempre com o baseline: R² ≈ 0,3–0,4 é o esperado nesse dataset (a nota é subjetiva,
   dada por degustadores; a química explica só parte dela).
 - Árvores > lineares → relações não lineares/interações (ex.: efeito do álcool depende do tipo).
@@ -41,6 +46,7 @@ Textos curtos (3–6 frases ou poucos bullets por marcador). Português do Brasi
 - Permutação: confirma alcohol como a feature dominante, seguida de volatile acidity e SO2 livre.
 
 **Classificação**
+
 - Esquema A é muito desbalanceado (baixa ≈ 4 %); B é mais equilibrado; C (binário) dá os
   maiores números, mas é o problema mais fácil — números de esquemas diferentes **não** são
   diretamente comparáveis (nº de classes diferente).
@@ -53,6 +59,7 @@ Textos curtos (3–6 frases ou poucos bullets por marcador). Português do Brasi
 - Feature decisiva: alcohol de novo, depois volatile acidity — coerente com a regressão.
 
 **Conclusões / limitações**
+
 - Nota sensorial é subjetiva e tem ruído; dataset não tem uva, safra, preço.
 - Próximos passos possíveis: modelos separados por tipo, regressão ordinal, ajustar limiar de
   decisão por classe, mais dados das notas extremas.
