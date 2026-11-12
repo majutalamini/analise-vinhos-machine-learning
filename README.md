@@ -4,6 +4,12 @@ Trabalho final de Machine Learning em Python. A primeira parte estima a nota sen
 `quality` por regressão. A segunda agrupa a nota em faixas e avalia classificadores.
 O insumo é o [CSV do Grupo 1](dados/group_1_winequality.csv) fornecido pelo professor.
 
+## Versões integradas
+
+A versão principal é a da `main`: `modelo.py`, `limpeza.py`, o CSV em `dados/` e o notebook na raiz. O diretório [`historico/graficos-pt-e-analises/`](historico/graficos-pt-e-analises/) preserva o notebook e os materiais da outra branch para consulta. Eles representam uma versão anterior e não substituem o fluxo principal: usam caminhos e lógica de limpeza diferentes. Os resultados das duas versões não foram comparados em uma nova execução.
+
+O script treina e avalia modelos durante a execução; não há um modelo treinado salvo para uso posterior.
+
 ## Código do trabalho
 
 O [modelo.py](modelo.py) é o script de Machine Learning. Ele carrega os dados, prepara
