@@ -1,4 +1,15 @@
-"""Treina e avalia os modelos usando o CSV já limpo."""
+"""=== Treina e avalia os modelos usando o CSV já limpo ===
+
+Lê e valida a base limpa (tipos só red/white; notas inteiras de 0 a 10).
+
+X e y: X = 11 variáveis numéricas + type; y = quality.
+
+Faixas para classificação: pd.cut em baixa (0-4), média (5-6), alta (7-10).
+
+Escolhe o melhor pela métrica da CV, treina no treino inteiro, avalia uma vez no teste é salva
+com joblib
+"""
+
 import hashlib
 import json
 from pathlib import Path
@@ -25,7 +36,18 @@ RESULTADOS = RAIZ / 'resultados'
 MODELOS = RAIZ / 'modelos'
 SEMENTE = 42
 
+""""
+Imputação pela mediana: preenche os NaN que a limpeza deixou. A mediana é robusta a
+outliers.
 
+• StandardScaler: coloca as variáveis na mesma escala (média 0, desvio 1). Essencial para Ridge
+e regressão logística; inofensivo para Random Forest.
+
+• OneHotEncoder em type: transforma red/white em colunas 0/1.
+
+• Tudo dentro do Pipeline: a cada dobra da CV, mediana e escala são aprendidas só com as
+linhas de treino daquela dobra. Isso evita vazamento de dados (data leakage)
+"""
 def pipeline(estimator):
     numerico = Pipeline([('imputacao', SimpleImputer(strategy='median')),
                          ('escala', StandardScaler())])
@@ -70,6 +92,7 @@ def main():
               'sha256_csv_limpo': hashlib.sha256(LIMPO.read_bytes()).hexdigest(),
               'versoes': {'numpy': np.__version__, 'pandas': pd.__version__, 'scikit-learn': sklearn.__version__, 'joblib': joblib.__version__},
               'tarefas': {}}
+        
     for tarefa, (y_tr, y_te, candidatos, cv, metrica) in tarefas.items():
         pontuacoes = {}
         for nome, estimador in candidatos.items():
@@ -97,3 +120,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# Regressão (nota0-10):Random Forest. Métrica: RMSE (menor e melhor).
+# Classificação (baixa/média/alta): Random Forest. Métrica: F1 macro (maior e melhor).
+# Treina no treino inteiro, avalia uma vez no teste e salva com joblib.
+# Random forest: captura relações não lineares e interações entre variáveis. Ridge e logística só modelam relações lineares.
